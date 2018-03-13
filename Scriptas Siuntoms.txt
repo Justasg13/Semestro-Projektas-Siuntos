@@ -1,0 +1,80 @@
+CREATE TABLE [dbo].[ArchyveDoc](
+	[ArchyveDocID] [int] IDENTITY(1,1) NOT NULL,
+	[OwnerID] [int] NULL,
+	[KindID] [int] NULL,
+	[DateFrom] [datetime] NULL,
+	[DateTo] [datetime] NULL,
+	[StoreTill] [datetime] NULL,
+	[Status] [int] NULL,
+	[Note] [nvarchar](200) NULL,
+	[ResponsibleID] [int] NULL,
+	[LastTime] [datetime] NULL CONSTRAINT [DF_ArchyveDoc_LastTime]  DEFAULT (getdate()),
+	[UserID] [int] NULL,
+	[DocDate] [datetime] NULL,
+	[Locked] [int] NULL,
+ CONSTRAINT [pk_ArchyveDocID] PRIMARY KEY ([ArchyveDocID] ASC)
+)
+
+GO
+
+
+CREATE TABLE [dbo].[ArchyveDocKind](
+	[ArchyveDocKindID] [int] NOT NULL,
+	[Description] [nvarchar](200) NULL,
+	[SavePeriod] [int] NULL,
+	[LastTime] DATETIME CONSTRAINT DF_ArchyveDocKind_LastTime DEFAULT(GETDATE()),
+ CONSTRAINT [PK_ArchyveDocKind_ArchyveDocKindID] PRIMARY KEY ([ArchyveDocKindID] ASC)
+)
+
+GO
+
+CREATE TABLE [dbo].[TransferLabel](
+	[TransferLabelID] [int] IDENTITY(1,1) NOT NULL,
+	[DateCreated] [datetime] NULL,
+	[SenderID] [int] NULL,
+	[CustomerID] [int] NULL,
+	[CustomerCode] [varchar](10) NULL,
+	[Note] [nvarchar](200) NULL,
+	[LabelBarcode] [varchar](15) NULL,
+	[Status] [int] NULL,
+	[RefType] [int] NULL,
+	[RefID] [int] NULL,
+	[LastTime] [datetime] NULL,
+	[UserID] [int] NULL,
+	[DepID] [int] NULL,
+	[DepDesc] [nvarchar](50) NULL,
+ CONSTRAINT [pk_TransferLabelID] PRIMARY KEY CLUSTERED ([TransferLabelID] ASC)
+)
+
+GO
+
+Create PROCEDURE [dbo].[TransferLabel_Insert](@SenderId INT, @CustomerId INT,@CustomerCode VARCHAR(10), @Note VARCHAR(200), @RefType INT, @RefID INT,@DepID INT , @DepDesc nVARCHAR(50), @TransferLabelId INT OUTPUT)
+AS
+BEGIN
+  SET NOCOUNT ON
+    DECLARE @Error INT, @UserId INT
+	  SELECT @Error = 0, @UserId = dbo.UserId()
+	   
+
+  BEGIN TRANSACTION
+    DECLARE @Res TABLE (Id INT)
+    INSERT INTO TransferLabel (SenderID, CustomerID, CustomerCode, Note, RefType, RefID, UserId, Status, DepID, DepDesc)
+      OUTPUT INSERTED.TransferLabelId INTO @Res
+                       VALUES (@SenderId, @CustomerId, @CustomerCode, @Note, @RefType, @RefID, @UserId, 0, @DepID, @DepDesc)
+    SET @Error = @@ERROR
+    IF @Error != 0
+      GOTO OnError
+ 
+
+    SELECT TOP 1 @TransferLabelId = Id FROM @Res
+ 
+
+  COMMIT TRANSACTION
+  RETURN 0
+OnError:
+  IF @@trancount > 1
+    COMMIT TRANSACTION
+  ELSE IF @@trancount = 1
+    ROLLBACK TRANSACTION
+  RETURN @Error
+END
